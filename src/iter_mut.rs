@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::iter::{Enumerate, ExactSizeIterator, FusedIterator};
+use std::marker::PhantomData;
 use std::slice;
 
 use crate::arena::{Entry, Index};
@@ -11,7 +12,7 @@ pub struct IterMut<'a, T> {
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
-    type Item = (Index, &'a mut T);
+    type Item = (Index<T>, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -34,6 +35,7 @@ impl<'a, T> Iterator for IterMut<'a, T> {
                     let index = Index {
                         slot,
                         generation: occupied.generation,
+                        _marker: PhantomData,
                     };
 
                     return Some((index, &mut occupied.value));

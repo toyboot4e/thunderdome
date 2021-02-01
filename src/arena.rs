@@ -1,4 +1,6 @@
 use std::convert::TryInto;
+use std::fmt;
+use std::marker::PhantomData;
 use std::mem::replace;
 use std::ops;
 
@@ -21,13 +23,36 @@ pub struct Arena<T> {
 }
 
 /// Index type for [`Arena`][Arena] that has a generation attached to it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Index {
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Index<T> {
     pub(crate) slot: u32,
     pub(crate) generation: Generation,
+    pub(crate) _marker: PhantomData<T>,
 }
 
-impl Index {
+impl<T> Clone for Index<T> {
+    fn clone(&self) -> Self {
+        Self {
+            slot: self.slot,
+            generation: self.generation,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Copy for Index<T> {}
+
+impl<T> fmt::Debug for Index<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Index")
+            .field("slot", &self.slot)
+            .field("generation", &self.generation)
+            .field("_marker", &self._marker)
+            .finish()
+    }
+}
+
+impl<T> Index<T> {
     /// Convert this `Index` to an equivalent `u64` representation. Mostly
     /// useful for passing to code outside of Rust.
     #[allow(clippy::integer_arithmetic)]
@@ -49,7 +74,11 @@ impl Index {
         let generation = Generation::from_u32((bits >> 32) as u32);
         let slot = bits as u32;
 
-        Self { generation, slot }
+        Self {
+            generation,
+            slot,
+            _marker: PhantomData,
+        }
     }
 
     /// Convert this `Index` into a slot, discarding its generation. Slots describe a
@@ -133,7 +162,7 @@ impl<T> Arena<T> {
 
     /// Insert a new value into the arena, returning an index that can be used
     /// to later retrieve the value.
-    pub fn insert(&mut self, value: T) -> Index {
+    pub fn insert(&mut self, value: T) -> Index<T> {
         // This value will definitely be inserted, so we can update length now.
         self.len = self
             .len
@@ -162,7 +191,11 @@ impl<T> Arena<T> {
             let generation = empty.generation.next();
             *entry = Entry::Occupied(OccupiedEntry { generation, value });
 
-            Index { slot, generation }
+            Index {
+                slot,
+                generation,
+                _marker: PhantomData,
+            }
         } else {
             // There were no more empty entries left in our free list, so we'll
             // create a new first-generation entry and push it into storage.
@@ -175,12 +208,16 @@ impl<T> Arena<T> {
             self.storage
                 .push(Entry::Occupied(OccupiedEntry { generation, value }));
 
-            Index { slot, generation }
+            Index {
+                slot,
+                generation,
+                _marker: PhantomData,
+            }
         }
     }
 
     /// Returns true if the given index is valid for the arena.
-    pub fn contains(&self, index: Index) -> bool {
+    pub fn contains(&self, index: Index<T>) -> bool {
         match self.storage.get(index.slot as usize) {
             Some(Entry::Occupied(occupied)) if occupied.generation == index.generation => true,
             _ => false,
@@ -190,11 +227,12 @@ impl<T> Arena<T> {
     /// Checks to see whether a slot is occupied in the arena, and if it is,
     /// returns `Some` with the true `Index` of that slot (slot plus generation.)
     /// Otherwise, returns `None`.
-    pub fn contains_slot(&self, slot: u32) -> Option<Index> {
+    pub fn contains_slot(&self, slot: u32) -> Option<Index<T>> {
         match self.storage.get(slot as usize) {
             Some(Entry::Occupied(occupied)) => Some(Index {
                 slot,
                 generation: occupied.generation,
+                _marker: PhantomData,
             }),
             _ => None,
         }
@@ -203,7 +241,7 @@ impl<T> Arena<T> {
     /// Get an immutable reference to a value inside the arena by
     /// [`Index`][Index], returning `None` if the index is not contained in the
     /// arena.
-    pub fn get(&self, index: Index) -> Option<&T> {
+    pub fn get(&self, index: Index<T>) -> Option<&T> {
         match self.storage.get(index.slot as usize) {
             Some(Entry::Occupied(occupied)) if occupied.generation == index.generation => {
                 Some(&occupied.value)
@@ -214,7 +252,7 @@ impl<T> Arena<T> {
 
     /// Get a mutable reference to a value inside the arena by [`Index`][Index],
     /// returning `None` if the index is not contained in the arena.
-    pub fn get_mut(&mut self, index: Index) -> Option<&mut T> {
+    pub fn get_mut(&mut self, index: Index<T>) -> Option<&mut T> {
         match self.storage.get_mut(index.slot as usize) {
             Some(Entry::Occupied(occupied)) if occupied.generation == index.generation => {
                 Some(&mut occupied.value)
@@ -225,7 +263,7 @@ impl<T> Arena<T> {
 
     /// Remove the value contained at the given index from the arena, returning
     /// it if it was present.
-    pub fn remove(&mut self, index: Index) -> Option<T> {
+    pub fn remove(&mut self, index: Index<T>) -> Option<T> {
         let entry = self.storage.get_mut(index.slot as usize)?;
 
         match entry {
@@ -260,7 +298,7 @@ impl<T> Arena<T> {
     /// Invalidate the given index and return a new index to the same value. This
     /// is roughly equivalent to `remove` followed by `insert`, but much faster.
     /// If the old index is already invalid, this method returns `None`.
-    pub fn invalidate(&mut self, index: Index) -> Option<Index> {
+    pub fn invalidate(&mut self, index: Index<T>) -> Option<Index<T>> {
         let entry = self.storage.get_mut(index.slot as usize)?;
 
         match entry {
@@ -279,12 +317,13 @@ impl<T> Arena<T> {
     /// Attempt to look up the given slot in the arena, disregarding any generational
     /// information, and retrieve an immutable reference to it. Returns `None` if the
     /// slot is empty.
-    pub fn get_by_slot(&self, slot: u32) -> Option<(Index, &T)> {
+    pub fn get_by_slot(&self, slot: u32) -> Option<(Index<T>, &T)> {
         match self.storage.get(slot as usize) {
             Some(Entry::Occupied(occupied)) => {
                 let index = Index {
                     slot,
                     generation: occupied.generation,
+                    _marker: PhantomData,
                 };
                 Some((index, &occupied.value))
             }
@@ -295,12 +334,13 @@ impl<T> Arena<T> {
     /// Attempt to look up the given slot in the arena, disregarding any generational
     /// information, and retrieve a mutable reference to it. Returns `None` if the
     /// slot is empty.
-    pub fn get_by_slot_mut(&mut self, slot: u32) -> Option<(Index, &mut T)> {
+    pub fn get_by_slot_mut(&mut self, slot: u32) -> Option<(Index<T>, &mut T)> {
         match self.storage.get_mut(slot as usize) {
             Some(Entry::Occupied(occupied)) => {
                 let index = Index {
                     slot,
                     generation: occupied.generation,
+                    _marker: PhantomData,
                 };
                 Some((index, &mut occupied.value))
             }
@@ -310,7 +350,7 @@ impl<T> Arena<T> {
 
     /// Remove an entry in the arena by its slot, disregarding any generational info.
     /// Returns `None` if the slot was already empty.
-    pub fn remove_by_slot(&mut self, slot: u32) -> Option<(Index, T)> {
+    pub fn remove_by_slot(&mut self, slot: u32) -> Option<(Index<T>, T)> {
         let entry = self.storage.get_mut(slot as usize)?;
 
         match entry {
@@ -319,6 +359,7 @@ impl<T> Arena<T> {
                 let index = Index {
                     generation: occupied.generation,
                     slot,
+                    _marker: PhantomData,
                 };
 
                 // This occupied entry will be replaced with an empty one of the
@@ -384,14 +425,17 @@ impl<T> Arena<T> {
             slot: 0,
         }
     }
+}
 
+impl<T> Arena<T> {
     /// Remove all entries in the `Arena` which don't satisfy the provided predicate.
-    pub fn retain<F: FnMut(Index, &mut T) -> bool>(&mut self, mut f: F) {
+    pub fn retain<F: FnMut(Index<T>, &mut T) -> bool>(&mut self, mut f: F) {
         for (i, entry) in self.storage.iter_mut().enumerate() {
             if let Entry::Occupied(occupied) = entry {
                 let index = Index {
                     slot: i as u32,
                     generation: occupied.generation,
+                    _marker: PhantomData,
                 };
 
                 if !f(index, &mut occupied.value) {
@@ -424,7 +468,7 @@ impl<T> Default for Arena<T> {
 }
 
 impl<T> IntoIterator for Arena<T> {
-    type Item = (Index, T);
+    type Item = (Index<T>, T);
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -435,17 +479,17 @@ impl<T> IntoIterator for Arena<T> {
     }
 }
 
-impl<T> ops::Index<Index> for Arena<T> {
+impl<T> ops::Index<Index<T>> for Arena<T> {
     type Output = T;
 
-    fn index(&self, index: Index) -> &Self::Output {
+    fn index(&self, index: Index<T>) -> &Self::Output {
         self.get(index)
             .unwrap_or_else(|| panic!("No entry at index {:?}", index))
     }
 }
 
-impl<T> ops::IndexMut<Index> for Arena<T> {
-    fn index_mut(&mut self, index: Index) -> &mut Self::Output {
+impl<T> ops::IndexMut<Index<T>> for Arena<T> {
+    fn index_mut(&mut self, index: Index<T>) -> &mut Self::Output {
         self.get_mut(index)
             .unwrap_or_else(|| panic!("No entry at index {:?}", index))
     }
@@ -459,8 +503,8 @@ mod test {
 
     #[test]
     fn size_of_index() {
-        assert_eq!(size_of::<Index>(), 8);
-        assert_eq!(size_of::<Option<Index>>(), 8);
+        assert_eq!(size_of::<Index<()>>(), 8);
+        assert_eq!(size_of::<Option<Index<()>>>(), 8);
     }
 
     #[test]
@@ -592,13 +636,13 @@ mod test {
 
     #[test]
     fn index_bits_roundtrip() {
-        let index = Index::from_bits(0x1BADCAFE_DEADBEEF);
+        let index = Index::<()>::from_bits(0x1BADCAFE_DEADBEEF);
         assert_eq!(index.to_bits(), 0x1BADCAFE_DEADBEEF);
     }
 
     #[test]
     #[should_panic]
     fn index_bits_panic_on_zero_generation() {
-        Index::from_bits(0x00000000_DEADBEEF);
+        Index::<()>::from_bits(0x00000000_DEADBEEF);
     }
 }
