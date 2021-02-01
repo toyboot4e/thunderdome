@@ -83,9 +83,14 @@ mod values;
 mod values_mut;
 
 pub use crate::arena::{Arena, Index};
-pub use crate::drain::Drain;
-pub use crate::into_iter::IntoIter;
-pub use crate::iter::Iter;
-pub use crate::iter_mut::IterMut;
-pub use crate::values::ValuesIter;
-pub use crate::values_mut::ValuesIterMut;
+
+pub mod iters {
+    //! Iterator types
+
+    pub use crate::drain::Drain;
+    pub use crate::into_iter::IntoIter;
+    pub use crate::iter::Iter;
+    pub use crate::iter_mut::IterMut;
+    pub use crate::values::ValuesIter;
+    pub use crate::values_mut::ValuesIterMut;
+}
