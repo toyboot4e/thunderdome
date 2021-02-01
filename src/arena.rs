@@ -8,6 +8,8 @@ use crate::generation::Generation;
 use crate::into_iter::IntoIter;
 use crate::iter::Iter;
 use crate::iter_mut::IterMut;
+use crate::values::ValuesIter;
+use crate::values_mut::ValuesIterMut;
 
 /// Container that can have elements inserted into it and removed from it.
 ///
@@ -411,6 +413,26 @@ impl<T> Arena<T> {
                     self.len = self.len.checked_sub(1).unwrap_or_else(|| unreachable!());
                 }
             }
+        }
+    }
+
+    /// Iterate over all of the values contained in the arena.
+    ///
+    /// Iteration order is not defined.
+    pub fn values(&self) -> ValuesIter<'_, T> {
+        ValuesIter {
+            inner: self.storage.iter().enumerate(),
+            len: self.len,
+        }
+    }
+
+    /// Iterate over all of the values contained in the arena with mutale access.
+    ///
+    /// Iteration order is not defined.
+    pub fn values_mut(&mut self) -> ValuesIterMut<'_, T> {
+        ValuesIterMut {
+            inner: self.storage.iter_mut().enumerate(),
+            len: self.len,
         }
     }
 }

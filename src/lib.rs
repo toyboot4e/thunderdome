@@ -79,9 +79,13 @@ mod generation;
 mod into_iter;
 mod iter;
 mod iter_mut;
+mod values;
+mod values_mut;
 
 pub use crate::arena::{Arena, Index};
 pub use crate::drain::Drain;
 pub use crate::into_iter::IntoIter;
 pub use crate::iter::Iter;
 pub use crate::iter_mut::IterMut;
+pub use crate::values::ValuesIter;
+pub use crate::values_mut::ValuesIterMut;
