@@ -9,7 +9,7 @@ pub struct IntoIter<T> {
 }
 
 impl<T> Iterator for IntoIter<T> {
-    type Item = (Index, T);
+    type Item = (Index<T>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

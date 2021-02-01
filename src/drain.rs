@@ -9,7 +9,7 @@ pub struct Drain<'a, T> {
 }
 
 impl<'a, T> Iterator for Drain<'a, T> {
-    type Item = (Index, T);
+    type Item = (Index<T>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
