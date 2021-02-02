@@ -163,7 +163,9 @@ impl<T> Arena<T> {
 
     /// Insert a new value into the arena, returning an index that can be used
     /// to later retrieve the value.
-    pub fn insert(&mut self, value: T) -> Index<T> {
+    pub fn insert(&mut self, value: impl Into<T>) -> Index<T> {
+        let value = value.into();
+
         // This value will definitely be inserted, so we can update length now.
         self.len = self
             .len
