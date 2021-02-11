@@ -48,7 +48,7 @@ impl<T> fmt::Debug for Index<T> {
         f.debug_struct("Index")
             .field("slot", &self.slot)
             .field("generation", &self.generation)
-            .field("_marker", &self._marker)
+            .field(std::any::type_name::<T>(), &self._marker)
             .finish()
     }
 }
