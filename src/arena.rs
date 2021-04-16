@@ -5,6 +5,7 @@ use std::mem::replace;
 use std::ops;
 
 use crate::drain::Drain;
+use crate::drain_filter::DrainFilter;
 use crate::free_pointer::FreePointer;
 use crate::generation::Generation;
 use crate::into_iter::IntoIter;
@@ -156,6 +157,11 @@ impl<T> Arena<T> {
     /// Return the number of elements contained in the arena.
     pub fn len(&self) -> usize {
         self.len as usize
+    }
+
+    /// Return the number of elements contained in the vec in the arena.
+    pub(crate) fn len_storage(&self) -> usize {
+        self.storage.len()
     }
 
     /// Return the number of elements the arena can hold without allocating,
@@ -472,6 +478,18 @@ impl<T> Arena<T> {
         Drain {
             arena: self,
             slot: 0,
+        }
+    }
+
+    /// Returns an iterator that removes each element from the arena if the predicate holds.
+    pub fn drain_filter<F: FnMut(&mut T) -> bool>(
+        &mut self,
+        predicate: F,
+    ) -> DrainFilter<'_, T, F> {
+        DrainFilter {
+            arena: self,
+            slot: 0,
+            predicate,
         }
     }
 }
