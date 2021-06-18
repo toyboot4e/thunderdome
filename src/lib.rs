@@ -86,18 +86,12 @@ macro_rules! IndexT {
     };
 }
 
+pub use crate::arena::Arena;
+pub use crate::index::Index;
+
+pub mod iter;
+
 mod arena;
-mod drain;
 mod free_pointer;
 mod generation;
 mod index;
-mod into_iter;
-mod iter;
-mod iter_mut;
-
-pub use crate::arena::Arena;
-pub use crate::drain::Drain;
-pub use crate::index::Index;
-pub use crate::into_iter::IntoIter;
-pub use crate::iter::Iter;
-pub use crate::iter_mut::IterMut;

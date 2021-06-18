@@ -2,13 +2,13 @@ use std::convert::TryInto;
 use std::mem::replace;
 use std::ops;
 
-use crate::drain::Drain;
 use crate::free_pointer::FreePointer;
 use crate::generation::Generation;
 use crate::index::create_index;
-use crate::into_iter::IntoIter;
+use crate::iter::Drain;
+use crate::iter::IntoIter;
 use crate::iter::Iter;
-use crate::iter_mut::IterMut;
+use crate::iter::IterMut;
 
 // shorthand for docstring
 #[allow(unused)]
